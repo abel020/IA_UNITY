@@ -24,6 +24,10 @@ public class MazeGenerator : MonoBehaviour
     public GameObject playerPrefab;    // Prefab del personaje a instanciar en el inicio
     public float playerSpawnYOffset = 1.0f; // Altura de spawn respecto al suelo
 
+    [Header("Objetivo")]
+    public GameObject goalPrefab;      // Prefab que se instancia en el final del laberinto
+    public float goalSpawnYOffset = 1.0f; // Altura de spawn respecto al suelo
+
     private readonly List<MazeInstance> mazes = new();
 
     private static readonly Vector2Int[] Directions =
@@ -118,6 +122,7 @@ public class MazeGenerator : MonoBehaviour
         }
 
         SpawnPlayer(instance);
+        SpawnGoal(instance);
     }
 
     // Instancia un jugador en la celda inicial del laberinto
@@ -130,6 +135,18 @@ public class MazeGenerator : MonoBehaviour
 
         Vector3 spawnPosition = instance.Origin + new Vector3(0f, playerSpawnYOffset, 0f);
         Instantiate(playerPrefab, spawnPosition, Quaternion.identity, transform);
+    }
+
+    // Instancia un objeto objetivo en la celda final del laberinto
+    private void SpawnGoal(MazeInstance instance)
+    {
+        if (goalPrefab == null)
+        {
+            return;
+        }
+
+        Vector3 spawnPosition = instance.Origin + new Vector3((width - 1) * cellSizeX, goalSpawnYOffset, (height - 1) * cellSizeZ);
+        Instantiate(goalPrefab, spawnPosition, Quaternion.identity, transform);
     }
 
     // Obtiene las paredes del prefab de la celda

@@ -2655,6 +2655,9 @@ MonoBehaviour:
   playerPrefab: {fileID: 1293290366791352, guid: 70d695e1d8399400bb0f2873bdf29bb0,
     type: 3}
   playerSpawnYOffset: 1
+  goalPrefab: {fileID: 253356261171864081, guid: 265e1cf1a8c00264c94cd5151e30b761,
+    type: 3}
+  goalSpawnYOffset: 0.65
 --- !u!4 &1111906847
 Transform:
   m_ObjectHideFlags: 0

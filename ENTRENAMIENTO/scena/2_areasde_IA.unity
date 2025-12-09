@@ -2658,6 +2658,9 @@ MonoBehaviour:
   goalPrefab: {fileID: 253356261171864081, guid: 265e1cf1a8c00264c94cd5151e30b761,
     type: 3}
   goalSpawnYOffset: 0.65
+  drawPathOnStart: 1
+  pathMaterial: {fileID: 2100000, guid: be7344392a0979145995d05913690117, type: 2}
+  debugMazes: []
 --- !u!4 &1111906847
 Transform:
   m_ObjectHideFlags: 0

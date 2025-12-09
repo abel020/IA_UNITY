@@ -2,6 +2,16 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+[System.Serializable]
+public class DebugMazeInfo
+{
+    public int mazeIndex;
+    public Vector3 origin;
+    public Vector2Int startCell;
+    public Vector2Int endCell;
+    public int pathLength;
+}
+
 public class MazeGenerator : MonoBehaviour
 {
     [Header("Prefab y dimensiones")]
@@ -11,7 +21,7 @@ public class MazeGenerator : MonoBehaviour
     public float cellSizeX = 5.0f;     // Tamaño de la celda en el eje X (ajustable según tu prefab)
     public float cellSizeZ = 5.0f;     // Tamaño de la celda en el eje Z (ajustable según tu prefab)
 
-    [Header("Multiples laberintos")]
+    [Header("Múltiples laberintos")]
     public int mazeRows = 1;           // Número de laberintos en filas
     public int mazeColumns = 1;        // Número de laberintos en columnas
     public float mazePadding = 2.0f;   // Espacio entre laberintos
@@ -26,22 +36,57 @@ public class MazeGenerator : MonoBehaviour
 
     [Header("Objetivo")]
     public GameObject goalPrefab;      // Prefab que se instancia en el final del laberinto
-    public float goalSpawnYOffset = 1.0f; // Altura de spawn respecto al suelo
+    public float goalSpawnYOffset = 1.0f;   // Altura de spawn respecto al suelo
 
+    [Header("Pathfinding (A*)")]
+    public bool drawPathOnStart = false;   // Si es true, dibuja el camino de A* al terminar de generar
+    public Material pathMaterial;          // Material para pintar el camino
+
+    [Header("DEBUG (solo lectura visual)")]
+    [SerializeField] private List<DebugMazeInfo> debugMazes = new();
+
+    // Singleton para que el agente pueda acceder fácil
+    public static MazeGenerator Instance { get; private set; }
+
+    // Lista de todos los laberintos generados
     private readonly List<MazeInstance> mazes = new();
+
+    // Por cada laberinto, guardamos su camino A* y su campo de distancias
+    private readonly Dictionary<MazeInstance, List<Cell>> mazePaths = new();
+    private readonly Dictionary<MazeInstance, int[,]> mazeDistanceFields = new();
+
+    // Laberinto "principal" para RL (por ejemplo el primero)
+    private MazeInstance mainInstance;
+    // Campo de distancias activo (del laberinto principal)
+    private int[,] distanceField;
+    // Último path solo para debug
+    private List<Cell> lastPath;
 
     private static readonly Vector2Int[] Directions =
     {
-        new(1, 0),   // Este
-        new(-1, 0),  // Oeste
-        new(0, 1),   // Norte
-        new(0, -1)   // Sur
+        new Vector2Int(1, 0),   // Este
+        new Vector2Int(-1, 0),  // Oeste
+        new Vector2Int(0, 1),   // Norte
+        new Vector2Int(0, -1)   // Sur
     };
+
+    // ===================== CICLO DE VIDA =====================
+
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Debug.LogWarning("MazeGenerator: hay más de una instancia en la escena.");
+        }
+        Instance = this;
+    }
 
     private void Start()
     {
         GenerateAllMazes();
     }
+
+    // ===================== CLASES INTERNAS =====================
 
     // Clase que representa cada celda en el laberinto
     private class Cell
@@ -49,7 +94,7 @@ public class MazeGenerator : MonoBehaviour
         public readonly int X;
         public readonly int Y;
         public bool Visited;
-        public GameObject[] Walls;   // Las paredes de la celda (Norte, Sur, Este, Oeste)
+        public GameObject[] Walls;    // Las paredes de la celda (Norte, Sur, Este, Oeste)
         public GameObject CellObject; // El objeto de la celda para aplicar materiales
 
         public Cell(GameObject[] wallObjs, GameObject cellObj, int x, int y)
@@ -69,6 +114,10 @@ public class MazeGenerator : MonoBehaviour
         public readonly List<Cell> Frontier = new();
         public readonly Vector3 Origin;
 
+        // Inicio y fin de este laberinto
+        public Cell StartCell;
+        public Cell EndCell;
+
         public MazeInstance(int width, int height, Vector3 origin)
         {
             Grid = new Cell[width, height];
@@ -76,10 +125,32 @@ public class MazeGenerator : MonoBehaviour
         }
     }
 
-    // Genera todos los laberintos solicitados en una grilla
+    // Nodo para A*
+    private class AStarNode
+    {
+        public Cell Cell;
+        public float G; // costo desde el inicio
+        public float H; // heurística (estimación al objetivo)
+        public float F => G + H;
+        public AStarNode Parent;
+
+        public AStarNode(Cell cell)
+        {
+            Cell = cell;
+        }
+    }
+
+    // ===================== GENERACIÓN DE LABERINTOS =====================
+
     private void GenerateAllMazes()
     {
         mazes.Clear();
+        mazePaths.Clear();
+        mazeDistanceFields.Clear();
+        debugMazes.Clear();
+        mainInstance = null;
+        distanceField = null;
+        lastPath = null;
 
         float mazeTotalWidth = width * cellSizeX + mazePadding;
         float mazeTotalHeight = height * cellSizeZ + mazePadding;
@@ -88,11 +159,25 @@ public class MazeGenerator : MonoBehaviour
         {
             for (int col = 0; col < mazeColumns; col++)
             {
-                Vector3 origin = new(col * mazeTotalWidth, 0f, row * mazeTotalHeight);
-                MazeInstance instance = new(width, height, origin);
+                Vector3 origin = new Vector3(col * mazeTotalWidth, 0f, row * mazeTotalHeight);
+                MazeInstance instance = new MazeInstance(width, height, origin);
                 mazes.Add(instance);
-                BuildMaze(instance);
-                StartCoroutine(GenerateMazeUsingPrim(instance));
+
+                // Usamos el primer laberinto como principal para RL
+                if (mainInstance == null)
+                {
+                    mainInstance = instance;
+                }
+
+                BuildMaze(instance);                     // Instancia todas las celdas
+                ChooseStartAndEnd(instance, out Cell startCell, out Cell endCell); // Elige extremos
+                instance.StartCell = startCell;          // Guardamos para A*
+                instance.EndCell = endCell;              // Guardamos para A*
+                ApplyStartEndVisuals(startCell, endCell); // Pinta materiales
+                SpawnPlayer(startCell);                  // Instancia jugador
+                SpawnGoal(endCell);                      // Instancia objetivo
+
+                StartCoroutine(GenerateMazeUsingPrim(instance)); // Carva el laberinto
             }
         }
     }
@@ -110,44 +195,112 @@ public class MazeGenerator : MonoBehaviour
 
                 instance.Grid[x, y] = new Cell(walls, cellObject, x, y);
 
-                if (x == 0 && y == 0)
-                {
-                    SetMaterial(cellObject, startMaterial);
-                }
-                else if (x == width - 1 && y == height - 1)
-                {
-                    SetMaterial(cellObject, endMaterial);
-                }
+                // Aquí NO se asignan materiales de inicio/fin fijos.
+            }
+        }
+    }
+
+    // ---------- Elección de inicio y fin extremos ----------
+
+    /// <summary>
+    /// Elige dos celdas de los bordes del laberinto como inicio y fin,
+    /// intentando que estén lo más alejadas posible (extremo a extremo).
+    /// </summary>
+    private void ChooseStartAndEnd(MazeInstance instance, out Cell startCell, out Cell endCell)
+    {
+        // Aseguramos que tenga sentido hablar de extremos
+        if (width < 2 && height < 2)
+        {
+            // Laberinto de 1x1, caso trivial
+            startCell = instance.Grid[0, 0];
+            endCell = instance.Grid[0, 0];
+            return;
+        }
+
+        bool horizontal = Random.value < 0.5f; // true: izquierda-derecha, false: abajo-arriba
+
+        int startX, startY, endX, endY;
+
+        if (horizontal)
+        {
+            // Inicio en el borde izquierdo (x = 0), fin en el borde derecho (x = width - 1)
+            startX = 0;
+            endX = width - 1;
+
+            startY = Random.Range(0, height);
+            endY = Random.Range(0, height);
+
+            // Intentar que verticalmente también estén alejados
+            int intentos = 0;
+            while (Mathf.Abs(startY - endY) < height / 2 && intentos < 10 && height > 1)
+            {
+                endY = Random.Range(0, height);
+                intentos++;
+            }
+        }
+        else
+        {
+            // Inicio en el borde inferior (y = 0), fin en el borde superior (y = height - 1)
+            startY = 0;
+            endY = height - 1;
+
+            startX = Random.Range(0, width);
+            endX = Random.Range(0, width);
+
+            int intentos = 0;
+            while (Mathf.Abs(startX - endX) < width / 2 && intentos < 10 && width > 1)
+            {
+                endX = Random.Range(0, width);
+                intentos++;
             }
         }
 
-        SpawnPlayer(instance);
-        SpawnGoal(instance);
+        startCell = instance.Grid[startX, startY];
+        endCell = instance.Grid[endX, endY];
     }
 
-    // Instancia un jugador en la celda inicial del laberinto
-    private void SpawnPlayer(MazeInstance instance)
+    private void ApplyStartEndVisuals(Cell startCell, Cell endCell)
     {
-        if (playerPrefab == null)
+        if (startCell != null && startMaterial != null)
+        {
+            SetMaterial(startCell.CellObject, startMaterial);
+        }
+
+        if (endCell != null && endMaterial != null)
+        {
+            SetMaterial(endCell.CellObject, endMaterial);
+        }
+    }
+
+    // ---------- Spawn de jugador y objetivo ----------
+
+    // Instancia un jugador en la celda de inicio
+    private void SpawnPlayer(Cell startCell)
+    {
+        if (playerPrefab == null || startCell == null)
         {
             return;
         }
 
-        Vector3 spawnPosition = instance.Origin + new Vector3(0f, playerSpawnYOffset, 0f);
-        Instantiate(playerPrefab, spawnPosition, Quaternion.identity, transform);
+        Vector3 pos = startCell.CellObject.transform.position;
+        pos.y += playerSpawnYOffset;
+        Instantiate(playerPrefab, pos, Quaternion.identity, transform);
     }
 
-    // Instancia un objeto objetivo en la celda final del laberinto
-    private void SpawnGoal(MazeInstance instance)
+    // Instancia un objeto objetivo en la celda de fin
+    private void SpawnGoal(Cell endCell)
     {
-        if (goalPrefab == null)
+        if (goalPrefab == null || endCell == null)
         {
             return;
         }
 
-        Vector3 spawnPosition = instance.Origin + new Vector3((width - 1) * cellSizeX, goalSpawnYOffset, (height - 1) * cellSizeZ);
-        Instantiate(goalPrefab, spawnPosition, Quaternion.identity, transform);
+        Vector3 pos = endCell.CellObject.transform.position;
+        pos.y += goalSpawnYOffset;
+        Instantiate(goalPrefab, pos, Quaternion.identity, transform);
     }
+
+    // ---------- Utilidades de celdas ----------
 
     // Obtiene las paredes del prefab de la celda
     private GameObject[] GetWalls(GameObject cell)
@@ -178,27 +331,21 @@ public class MazeGenerator : MonoBehaviour
         if (groundTransform != null)
         {
             Renderer renderer = groundTransform.GetComponent<Renderer>();
-            if (renderer != null)
+            if (renderer != null && material != null)
             {
                 renderer.material = material;
             }
-            else
-            {
-                Debug.LogWarning("El objeto 'Ground' no tiene un componente Renderer.");
-            }
-        }
-        else
-        {
-            Debug.LogWarning("El objeto 'Ground' no se encuentra dentro de la celda.");
         }
     }
+
+    // ===================== ALGORITMO DE PRIM =====================
 
     // Algoritmo de Prim para generar el laberinto sin diagonales y siempre conectado
     private IEnumerator GenerateMazeUsingPrim(MazeInstance instance)
     {
         instance.Frontier.Clear();
 
-        Cell startCell = instance.Grid[0, 0];
+        Cell startCell = instance.Grid[0, 0]; // semilla de generación (no tiene por qué ser el "inicio" del agente)
         startCell.Visited = true;
 
         AddNeighborsToFrontier(startCell, instance);
@@ -217,11 +364,59 @@ public class MazeGenerator : MonoBehaviour
 
             instance.Frontier.Remove(currentCell);
 
+            // Dejar yield para ver la generación paso a paso (si quieres quitarlo, quita esta línea)
             yield return null;
         }
+
+        // ---------- AQUÍ EL LABERINTO YA ESTÁ GENERADO ----------
+
+        // 1) A*: calculamos y pintamos el camino de ESTE laberinto
+        List<Cell> path = null;
+
+        if (drawPathOnStart && pathMaterial != null &&
+            instance.StartCell != null && instance.EndCell != null)
+        {
+            path = FindPathAStar(instance, instance.StartCell, instance.EndCell);
+
+            if (path != null && path.Count > 0)
+            {
+                // Guardamos el path de este laberinto
+                mazePaths[instance] = path;
+
+                // Además guardamos el último path del laberinto principal (para debug)
+                if (instance == mainInstance)
+                {
+                    lastPath = path;
+                }
+
+                // Pintamos el camino en el suelo
+                HighlightPath(path, instance.StartCell, instance.EndCell);
+            }
+        }
+
+        // 2) Campo de distancias para ESTE laberinto (para RL o análisis)
+        ComputeDistanceField(instance);
+
+        // 3) DEBUG: llenamos info visible en el Inspector
+        if (debugMazes == null)
+            debugMazes = new List<DebugMazeInfo>();
+
+        var info = new DebugMazeInfo
+        {
+            mazeIndex = mazes.IndexOf(instance),
+            origin = instance.Origin,
+            startCell = instance.StartCell != null
+                ? new Vector2Int(instance.StartCell.X, instance.StartCell.Y)
+                : new Vector2Int(-1, -1),
+            endCell = instance.EndCell != null
+                ? new Vector2Int(instance.EndCell.X, instance.EndCell.Y)
+                : new Vector2Int(-1, -1),
+            pathLength = (path != null) ? path.Count : -1
+        };
+
+        debugMazes.Add(info);
     }
 
-    // Función para añadir las celdas vecinas no visitadas a la frontera
     private void AddNeighborsToFrontier(Cell cell, MazeInstance instance)
     {
         foreach (Vector2Int direction in Directions)
@@ -242,7 +437,6 @@ public class MazeGenerator : MonoBehaviour
         }
     }
 
-    // Conecta la celda actual con un vecino ya visitado, derribando la pared compartida
     private bool ConnectToRandomVisitedNeighbor(Cell currentCell, MazeInstance instance)
     {
         List<Cell> visitedNeighbors = new();
@@ -281,23 +475,27 @@ public class MazeGenerator : MonoBehaviour
 
         if (dx == 1)
         {
-            Destroy(currentCell.Walls[2]); // Este
-            Destroy(neighborCell.Walls[3]); // Oeste
+            // Vecino a la derecha (Este)
+            if (currentCell.Walls[2] != null) Destroy(currentCell.Walls[2]);
+            if (neighborCell.Walls[3] != null) Destroy(neighborCell.Walls[3]);
         }
         else if (dx == -1)
         {
-            Destroy(currentCell.Walls[3]); // Oeste
-            Destroy(neighborCell.Walls[2]); // Este
+            // Vecino a la izquierda (Oeste)
+            if (currentCell.Walls[3] != null) Destroy(currentCell.Walls[3]);
+            if (neighborCell.Walls[2] != null) Destroy(neighborCell.Walls[2]);
         }
         else if (dy == 1)
         {
-            Destroy(currentCell.Walls[0]); // Norte
-            Destroy(neighborCell.Walls[1]); // Sur
+            // Vecino arriba (Norte)
+            if (currentCell.Walls[0] != null) Destroy(currentCell.Walls[0]);
+            if (neighborCell.Walls[1] != null) Destroy(neighborCell.Walls[1]);
         }
         else if (dy == -1)
         {
-            Destroy(currentCell.Walls[1]); // Sur
-            Destroy(neighborCell.Walls[0]); // Norte
+            // Vecino abajo (Sur)
+            if (currentCell.Walls[1] != null) Destroy(currentCell.Walls[1]);
+            if (neighborCell.Walls[0] != null) Destroy(neighborCell.Walls[0]);
         }
     }
 
@@ -305,4 +503,327 @@ public class MazeGenerator : MonoBehaviour
     {
         return x >= 0 && y >= 0 && x < width && y < height;
     }
+
+    // ===================== A* PATHFINDING =====================
+
+    /// <summary>
+    /// A partir de aquí está la lógica de pathfinding con A*:
+    /// - Calcula el camino más corto entre StartCell y EndCell.
+    /// - Usa las paredes destruidas para saber qué celdas están conectadas.
+    /// - Pinta el camino en el suelo con pathMaterial (sin tocar el algoritmo de generación).
+    /// También sirve como base para calcular un campo de distancias que el agente de RL puede usar
+    /// como "GPS invisible" para el reward shaping.
+    /// </summary>
+
+    private float Heuristic(Cell a, Cell b)
+    {
+        int dx = Mathf.Abs(a.X - b.X);
+        int dy = Mathf.Abs(a.Y - b.Y);
+        return dx + dy; // Distancia Manhattan
+    }
+
+    private List<Cell> FindPathAStar(MazeInstance instance, Cell start, Cell goal)
+    {
+        List<AStarNode> openList = new();
+        HashSet<Cell> closedSet = new();
+
+        AStarNode startNode = new AStarNode(start)
+        {
+            G = 0f,
+            H = Heuristic(start, goal)
+        };
+        openList.Add(startNode);
+
+        while (openList.Count > 0)
+        {
+            // Elegimos el nodo con menor F
+            AStarNode current = openList[0];
+            for (int i = 1; i < openList.Count; i++)
+            {
+                if (openList[i].F < current.F)
+                {
+                    current = openList[i];
+                }
+            }
+
+            if (current.Cell == goal)
+            {
+                List<Cell> path = ReconstructPath(current);
+                return path;
+            }
+
+            openList.Remove(current);
+            closedSet.Add(current.Cell);
+
+            foreach (Vector2Int dir in Directions)
+            {
+                int nx = current.Cell.X + dir.x;
+                int ny = current.Cell.Y + dir.y;
+
+                if (!IsInsideBounds(nx, ny))
+                    continue;
+
+                Cell neighborCell = instance.Grid[nx, ny];
+
+                // Solo avanzamos si hay conexión (no hay muro entre ellos)
+                if (!AreCellsConnected(current.Cell, neighborCell))
+                    continue;
+
+                if (closedSet.Contains(neighborCell))
+                    continue;
+
+                float tentativeG = current.G + 1f; // todas las aristas valen 1
+
+                AStarNode neighborNode = null;
+                for (int i = 0; i < openList.Count; i++)
+                {
+                    if (openList[i].Cell == neighborCell)
+                    {
+                        neighborNode = openList[i];
+                        break;
+                    }
+                }
+
+                if (neighborNode == null)
+                {
+                    neighborNode = new AStarNode(neighborCell);
+                    neighborNode.G = tentativeG;
+                    neighborNode.H = Heuristic(neighborCell, goal);
+                    neighborNode.Parent = current;
+                    openList.Add(neighborNode);
+                }
+                else if (tentativeG < neighborNode.G)
+                {
+                    neighborNode.G = tentativeG;
+                    neighborNode.H = Heuristic(neighborCell, goal);
+                    neighborNode.Parent = current;
+                }
+            }
+        }
+
+        Debug.LogWarning("A*: No se encontró camino (no debería pasar en un laberinto perfecto).");
+        return null;
+    }
+
+    private bool AreCellsConnected(Cell a, Cell b)
+    {
+        int dx = b.X - a.X;
+        int dy = b.Y - a.Y;
+
+        // Destroy() en Unity hace que el objeto == null aunque la referencia exista
+        if (dx == 1)
+        {
+            // b está a la derecha (Este)
+            return (a.Walls[2] == null && b.Walls[3] == null);
+        }
+        if (dx == -1)
+        {
+            // b a la izquierda (Oeste)
+            return (a.Walls[3] == null && b.Walls[2] == null);
+        }
+        if (dy == 1)
+        {
+            // b arriba (Norte)
+            return (a.Walls[0] == null && b.Walls[1] == null);
+        }
+        if (dy == -1)
+        {
+            // b abajo (Sur)
+            return (a.Walls[1] == null && b.Walls[0] == null);
+        }
+
+        return false;
+    }
+
+    private List<Cell> ReconstructPath(AStarNode endNode)
+    {
+        List<Cell> path = new();
+        AStarNode current = endNode;
+
+        while (current != null)
+        {
+            path.Add(current.Cell);
+            current = current.Parent;
+        }
+
+        path.Reverse();
+        return path;
+    }
+
+    private void HighlightPath(List<Cell> path, Cell start, Cell end)
+    {
+        if (path == null || path.Count == 0 || pathMaterial == null)
+            return;
+
+        foreach (Cell cell in path)
+        {
+            // No tocamos inicio ni fin (ya tienen sus materiales)
+            if (cell == start || cell == end)
+                continue;
+
+            if (cell.CellObject == null)
+                continue;
+
+            Transform ground = cell.CellObject.transform.Find("Ground");
+            if (ground == null)
+                continue;
+
+            Renderer renderer = ground.GetComponent<Renderer>();
+            if (renderer == null)
+                continue;
+
+            renderer.material = pathMaterial;
+        }
+    }
+
+    // ===================== CAMPO DE DISTANCIAS PARA RL =====================
+
+    /// <summary>
+    /// Calcula una matriz de distancias para ESTE laberinto
+    /// y la guarda en mazeDistanceFields[instance].
+    /// Si instance es el mainInstance, también actualiza distanceField
+    /// para que el agente pueda consultarla.
+    /// </summary>
+    private void ComputeDistanceField(MazeInstance instance)
+    {
+        if (instance.EndCell == null)
+        {
+            Debug.LogWarning("ComputeDistanceField: EndCell es null.");
+            return;
+        }
+
+        int[,] field = new int[width, height];
+
+        // Inicializamos con "infinito"
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                field[x, y] = int.MaxValue;
+            }
+        }
+
+        Queue<Cell> queue = new();
+        Cell goal = instance.EndCell;
+
+        field[goal.X, goal.Y] = 0;
+        queue.Enqueue(goal);
+
+        while (queue.Count > 0)
+        {
+            Cell current = queue.Dequeue();
+            int currentDist = field[current.X, current.Y];
+
+            foreach (Vector2Int dir in Directions)
+            {
+                int nx = current.X + dir.x;
+                int ny = current.Y + dir.y;
+
+                if (!IsInsideBounds(nx, ny))
+                    continue;
+
+                Cell neighbor = instance.Grid[nx, ny];
+
+                // Solo consideramos vecinos conectados (sin muro)
+                if (!AreCellsConnected(current, neighbor))
+                    continue;
+
+                int newDist = currentDist + 1;
+                if (newDist < field[nx, ny])
+                {
+                    field[nx, ny] = newDist;
+                    queue.Enqueue(neighbor);
+                }
+            }
+        }
+
+        // Guardamos en el diccionario para este laberinto
+        mazeDistanceFields[instance] = field;
+
+        // Si este laberinto es el principal, actualizamos el campo global
+        if (instance == mainInstance)
+        {
+            distanceField = field;
+        }
+    }
+
+    // ===================== API PÚBLICA PARA EL AGENTE =====================
+
+    /// <summary>
+    /// ¿Hay al menos un campo de distancias calculado?
+    /// </summary>
+    public bool HasAnyDistanceField => mazeDistanceFields.Count > 0;
+
+    /// <summary>
+    /// Posición mundial de la celda de inicio del laberinto principal
+    /// (por si quieres un agent de referencia).
+    /// </summary>
+    public Vector3 GetStartWorldPos()
+    {
+        if (mainInstance == null || mainInstance.StartCell == null)
+            return Vector3.zero;
+
+        return mainInstance.StartCell.CellObject.transform.position;
+    }
+
+    /// <summary>
+    /// Posición mundial de la celda objetivo del laberinto principal.
+    /// </summary>
+    public Vector3 GetGoalWorldPos()
+    {
+        if (mainInstance == null || mainInstance.EndCell == null)
+            return Vector3.zero;
+
+        return mainInstance.EndCell.CellObject.transform.position;
+    }
+
+    /// <summary>
+    /// Convierte una posición world a índices de celda (gx, gy) 
+    /// para un MazeInstance concreto. Devuelve true si cae dentro del rango.
+    /// </summary>
+    private bool WorldToCell(MazeInstance instance, Vector3 worldPos, out int gx, out int gy)
+    {
+        float localX = (worldPos.x - instance.Origin.x) / cellSizeX;
+        float localZ = (worldPos.z - instance.Origin.z) / cellSizeZ;
+
+        gx = Mathf.RoundToInt(localX);
+        gy = Mathf.RoundToInt(localZ);
+
+        return IsInsideBounds(gx, gy);
+    }
+
+    /// <summary>
+    /// Devuelve la distancia mínima (en nº de pasos de celda) desde la posición world
+    /// hasta el goal, detectando automáticamente a qué laberinto pertenece esa posición.
+    /// Si devuelve int.MaxValue, significa "desconocido / fuera de rango".
+    /// </summary>
+    public int GetDistanceFromWorldPos(Vector3 worldPos)
+    {
+        if (!HasAnyDistanceField)
+            return int.MaxValue;
+
+        // 1) Detectar en qué laberinto cae esa posición
+        MazeInstance foundInstance = null;
+        int gx = 0, gy = 0;
+
+        foreach (var instance in mazes)
+        {
+            if (WorldToCell(instance, worldPos, out gx, out gy))
+            {
+                foundInstance = instance;
+                break;
+            }
+        }
+
+        if (foundInstance == null)
+            return int.MaxValue;
+
+        // 2) Buscar el campo de distancias de ese laberinto
+        if (!mazeDistanceFields.TryGetValue(foundInstance, out int[,] field))
+            return int.MaxValue;
+
+        // gx, gy ya están validados por WorldToCell
+        return field[gx, gy];
+    }
+
 }

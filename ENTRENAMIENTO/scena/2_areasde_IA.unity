@@ -2643,8 +2643,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MazeGenerator
   cellPrefab: {fileID: 9075308813527798809, guid: a159848ec763cbb4fb761e0615047f09,
     type: 3}
-  width: 5
-  height: 5
+  width: 3
+  height: 3
   cellSizeX: 5
   cellSizeZ: 5
   mazeRows: 3
@@ -2652,7 +2652,7 @@ MonoBehaviour:
   mazePadding: 5
   startMaterial: {fileID: 2100000, guid: f75a6ad5b8f20dc469cc1dd26614093e, type: 2}
   endMaterial: {fileID: 2100000, guid: afa603d92e459e24aa73bd5ec6c7937d, type: 2}
-  playerPrefab: {fileID: 1293290366791352, guid: 70d695e1d8399400bb0f2873bdf29bb0,
+  playerPrefab: {fileID: 1247355512273378964, guid: f53efe10af7552d44bc060fac806b42c,
     type: 3}
   playerSpawnYOffset: 1
   goalPrefab: {fileID: 253356261171864081, guid: 265e1cf1a8c00264c94cd5151e30b761,

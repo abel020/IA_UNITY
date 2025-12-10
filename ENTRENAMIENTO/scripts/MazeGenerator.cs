@@ -42,7 +42,7 @@ public class MazeGenerator : MonoBehaviour
     public bool drawPathOnStart = false;   // Si es true, dibuja el camino de A* al terminar de generar
     public Material pathMaterial;          // Material para pintar el camino
 
-    [Header("DEBUG (solo lectura visual)")]
+    [Header("DEBUG")]
     [SerializeField] private List<DebugMazeInfo> debugMazes = new();
 
     // Singleton para que el agente pueda acceder fácil

@@ -15,7 +15,7 @@ GameObject:
   - component: {fileID: 8414440252029605856}
   m_Layer: 0
   m_Name: StaticTarget
-  m_TagString: target
+  m_TagString: goal
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0

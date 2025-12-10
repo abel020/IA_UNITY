@@ -28,15 +28,30 @@ PrefabInstance:
       propertyPath: m_Name
       value: Wall_South
       objectReference: {fileID: 0}
+    - target: {fileID: 6712984596080324290, guid: 84359146bf7af47e58c229d877e801d7,
+        type: 3}
+      propertyPath: m_TagString
+      value: wall
+      objectReference: {fileID: 0}
     - target: {fileID: 6713002466127001778, guid: 84359146bf7af47e58c229d877e801d7,
         type: 3}
       propertyPath: m_Name
       value: Wall_North
       objectReference: {fileID: 0}
+    - target: {fileID: 6713002466127001778, guid: 84359146bf7af47e58c229d877e801d7,
+        type: 3}
+      propertyPath: m_TagString
+      value: wall
+      objectReference: {fileID: 0}
     - target: {fileID: 6713112319212480754, guid: 84359146bf7af47e58c229d877e801d7,
         type: 3}
       propertyPath: m_Name
       value: Wall_East
+      objectReference: {fileID: 0}
+    - target: {fileID: 6713112319212480754, guid: 84359146bf7af47e58c229d877e801d7,
+        type: 3}
+      propertyPath: m_TagString
+      value: wall
       objectReference: {fileID: 0}
     - target: {fileID: 6713178126238440196, guid: 84359146bf7af47e58c229d877e801d7,
         type: 3}
@@ -47,6 +62,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: Wall_West
+      objectReference: {fileID: 0}
+    - target: {fileID: 6714307926902043266, guid: 84359146bf7af47e58c229d877e801d7,
+        type: 3}
+      propertyPath: m_TagString
+      value: wall
       objectReference: {fileID: 0}
     - target: {fileID: 6718429279504673720, guid: 84359146bf7af47e58c229d877e801d7,
         type: 3}

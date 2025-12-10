@@ -1480,13 +1480,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 475976503}
   serializedVersion: 2
-  m_LocalRotation: {x: 0.3335535, y: -0, z: -0, w: 0.94273126}
-  m_LocalPosition: {x: -17.9, y: 14.9, z: -11.4}
+  m_LocalRotation: {x: 0.69465834, y: 0, z: 0, w: 0.71933985}
+  m_LocalPosition: {x: 20, y: 61.5, z: 20}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 38.969, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 109.893005, y: 0, z: 0}
 --- !u!1 &552525999 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 6712984596080324290, guid: 84359146bf7af47e58c229d877e801d7,
@@ -2643,12 +2643,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MazeGenerator
   cellPrefab: {fileID: 9075308813527798809, guid: a159848ec763cbb4fb761e0615047f09,
     type: 3}
-  width: 3
-  height: 3
+  width: 2
+  height: 2
   cellSizeX: 5
   cellSizeZ: 5
-  mazeRows: 3
-  mazeColumns: 3
+  mazeRows: 6
+  mazeColumns: 6
   mazePadding: 5
   startMaterial: {fileID: 2100000, guid: f75a6ad5b8f20dc469cc1dd26614093e, type: 2}
   endMaterial: {fileID: 2100000, guid: afa603d92e459e24aa73bd5ec6c7937d, type: 2}

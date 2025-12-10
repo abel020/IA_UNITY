@@ -243,7 +243,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Policies.BehaviorParameters
   m_BrainParameters:
-    VectorObservationSize: 9
+    VectorObservationSize: 10
     NumStackedVectorObservations: 1
     m_ActionSpec:
       m_NumContinuousActions: 2
@@ -277,14 +277,28 @@ MonoBehaviour:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
   MaxStep: 1000
-  moveSpeed: 3
+  moveSpeed: 4
+  turnSpeed: 120
   useDistanceShaping: 1
-  rewardTowardsGoal: 0.02
-  penaltyAwayFromGoal: -0.02
-  timePenaltyPerStep: -0.001
+  rewardTowardsGoal: 0.04
+  penaltyAwayFromGoal: -0.07
+  timePenaltyPerStep: -0.008
+  goalReward: 10
+  wallPenalty: -1
+  usePathShaping: 0
+  pathNearThreshold: 1.5
+  rewardOnPath: 0.02
+  useAntiIdle: 1
+  minMoveDistance: 0.01
+  maxStepsWithoutMoving: 80
+  idlePenalty: -0.5
+  includeDistanceObservation: 1
+  distanceNormalizationFactor: 50
   win: {fileID: 2100000, guid: f75a6ad5b8f20dc469cc1dd26614093e, type: 2}
   lose: {fileID: 2100000, guid: 08a1b0ceb0244ff4d9a9343d5f4717e7, type: 2}
-  myrenderer: {fileID: 0}
+  neutral: {fileID: 0}
+  agentRenderer: {fileID: 0}
+  mazeIndex: -1
 --- !u!114 &7396347579572558382
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -23,6 +23,11 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 6712668727867747242, guid: 84359146bf7af47e58c229d877e801d7,
+        type: 3}
+      propertyPath: m_TagString
+      value: wall
+      objectReference: {fileID: 0}
     - target: {fileID: 6712984596080324290, guid: 84359146bf7af47e58c229d877e801d7,
         type: 3}
       propertyPath: m_Name
@@ -50,6 +55,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6713112319212480754, guid: 84359146bf7af47e58c229d877e801d7,
         type: 3}
+      propertyPath: m_IsActive
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6713112319212480754, guid: 84359146bf7af47e58c229d877e801d7,
+        type: 3}
       propertyPath: m_TagString
       value: wall
       objectReference: {fileID: 0}
@@ -57,6 +67,11 @@ PrefabInstance:
         type: 3}
       propertyPath: m_Name
       value: Platform Variant
+      objectReference: {fileID: 0}
+    - target: {fileID: 6713178126238440196, guid: 84359146bf7af47e58c229d877e801d7,
+        type: 3}
+      propertyPath: m_TagString
+      value: wall
       objectReference: {fileID: 0}
     - target: {fileID: 6714307926902043266, guid: 84359146bf7af47e58c229d877e801d7,
         type: 3}

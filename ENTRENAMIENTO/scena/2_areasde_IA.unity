@@ -1405,7 +1405,6 @@ GameObject:
   m_Component:
   - component: {fileID: 475976506}
   - component: {fileID: 475976505}
-  - component: {fileID: 475976504}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -1413,14 +1412,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!81 &475976504
-AudioListener:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 475976503}
-  m_Enabled: 1
 --- !u!20 &475976505
 Camera:
   m_ObjectHideFlags: 0
@@ -2643,8 +2634,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MazeGenerator
   cellPrefab: {fileID: 9075308813527798809, guid: a159848ec763cbb4fb761e0615047f09,
     type: 3}
-  width: 2
-  height: 2
+  width: 4
+  height: 4
   cellSizeX: 5
   cellSizeZ: 5
   mazeRows: 6

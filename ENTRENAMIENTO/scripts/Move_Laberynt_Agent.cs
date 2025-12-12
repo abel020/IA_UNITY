@@ -35,6 +35,13 @@ public class Move_Laberynt_Agent : Agent
     [SerializeField] private int maxStepsWithoutMoving = 40;       // Nº de steps seguidos casi sin moverse
     [SerializeField] private float idlePenalty = -0.1f;            // Penalización si se queda mucho tiempo quieto
 
+    [Header("Anti-loop (no progresa hacia la meta)")]
+    [SerializeField] private bool useAntiLoop = true;
+    [Tooltip("Pasos permitidos sin mejorar la distancia A* al objetivo.")]
+    [SerializeField] private int maxStepsWithoutProgress = 50;
+    [Tooltip("Penalización al detectar que no progresa hacia la meta.")]
+    [SerializeField] private float noProgressPenalty = -0.2f;
+
     [Header("Observaciones extra")]
     [Tooltip("Si está activado, agrega una observación escalar con la distancia normalizada al objetivo (campo de distancias A*).")]
     [SerializeField] private bool includeDistanceObservation = true;
@@ -71,6 +78,9 @@ public class Move_Laberynt_Agent : Agent
     private Vector3 lastPosition;
     private int stepsSinceMove = 0;
 
+    // Anti-loop (sin progreso)
+    private int stepsSinceProgress = 0;
+
     // Flags de logging
     private bool loggedVectorSize = false;
     private bool loggedRayComponents = false;
@@ -102,7 +112,6 @@ public class Move_Laberynt_Agent : Agent
         initialPosition = transform.position;
         hasInitialPosition = true;
 
-        // YA NO pedimos GetMazeFloorRenderers aquí
         Debug.Log($"{name} -> Start() ejecutado. MazeIndex = {mazeIndex}");
     }
 
@@ -114,9 +123,10 @@ public class Move_Laberynt_Agent : Agent
             transform.rotation = Quaternion.identity;
         }
 
-        // Reset anti-idle
+        // Reset anti-idle y anti-loop
         stepsSinceMove = 0;
         lastPosition = transform.position;
+        stepsSinceProgress = 0;
 
         // Distancia inicial en campo de distancias A*
         if (MazeGenerator.Instance != null &&
@@ -142,7 +152,7 @@ public class Move_Laberynt_Agent : Agent
                 hasPathCache = true;
             }
 
-            // ⚠️ NUEVO: pedir los floors excluyendo inicio/fin/path
+            // Floors excluyendo inicio/fin/path
             mazeFloorRenderers = MazeGenerator.Instance.GetMazeFloorRenderers(mazeIndex);
             Debug.Log($"{name} -> OnEpisodeBegin(): Floors en lista = {mazeFloorRenderers.Count}");
         }
@@ -195,7 +205,6 @@ public class Move_Laberynt_Agent : Agent
             Debug.Log($"{name} -> VectorSensor size (sólo observaciones manuales) = {sensor.ObservationSize()}");
             loggedVectorSize = true;
         }
-        // OJO: Los raycasts NO pasan por aquí, van por su propio sensor.
     }
 
     public override void OnActionReceived(ActionBuffers actions)
@@ -222,7 +231,7 @@ public class Move_Laberynt_Agent : Agent
         float turnAmount = turnInput * turnSpeed * Time.deltaTime;
         transform.Rotate(0f, turnAmount, 0f);
 
-        // Penalización por tiempo (evita episodios muy largos sin hacer nada útil)
+        // Penalización por tiempo
         AddReward(timePenaltyPerStep);
 
         // Anti-idle: penalizar si se queda casi en el mismo sitio muchos steps
@@ -256,15 +265,36 @@ public class Move_Laberynt_Agent : Agent
             int currentDistance =
                 MazeGenerator.Instance.GetDistanceFromWorldPos(transform.position, mazeIndex);
 
+            bool improved = false;
             if (currentDistance != int.MaxValue && previousDistance != int.MaxValue)
             {
                 if (currentDistance < previousDistance)
                 {
                     AddReward(rewardTowardsGoal);
+                    improved = true;
                 }
                 else if (currentDistance > previousDistance)
                 {
                     AddReward(penaltyAwayFromGoal);
+                }
+            }
+
+            // Anti-loop: si no mejora la distancia durante varios pasos, penaliza y termina
+            if (useAntiLoop)
+            {
+                if (improved)
+                {
+                    stepsSinceProgress = 0;
+                }
+                else
+                {
+                    stepsSinceProgress++;
+                    if (stepsSinceProgress >= maxStepsWithoutProgress)
+                    {
+                        AddReward(noProgressPenalty);
+                        EndEpisode();
+                        return;
+                    }
                 }
             }
 
@@ -406,7 +436,6 @@ public class Move_Laberynt_Agent : Agent
                     var s = sensors[i];
                     var spec = s.GetObservationSpec();
 
-                    // spec.Shape es InplaceArray<int>, no un int[]
                     int totalSize = 1;
                     if (spec.Shape.Length > 0)
                     {

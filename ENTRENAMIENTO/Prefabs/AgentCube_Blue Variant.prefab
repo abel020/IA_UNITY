@@ -48,8 +48,8 @@ MonoBehaviour:
   m_DetectableTags:
   - wall
   - goal
-  m_RaysPerDirection: 4
-  m_MaxRayDegrees: 70
+  m_RaysPerDirection: 8
+  m_MaxRayDegrees: 90
   m_SphereCastRadius: 0.5
   m_RayLength: 8
   m_RayLayerMask:
@@ -57,7 +57,7 @@ MonoBehaviour:
     m_Bits: 1
   m_ObservationStacks: 1
   m_AlternatingRayOrder: 0
-  m_UseBatchedRaycasts: 0
+  m_UseBatchedRaycasts: 1
   rayHitColor: {r: 1, g: 0, b: 0, a: 1}
   rayMissColor: {r: 1, g: 1, b: 1, a: 1}
   m_StartVerticalOffset: 0.5
@@ -175,6 +175,10 @@ PrefabInstance:
         type: 3}
       insertIndex: -1
       addedObject: {fileID: 7396347579572558382}
+    - targetCorrespondingSourceObject: {fileID: 1293290366791352, guid: 70d695e1d8399400bb0f2873bdf29bb0,
+        type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 8770797786374892454}
   m_SourcePrefab: {fileID: 100100000, guid: 70d695e1d8399400bb0f2873bdf29bb0, type: 3}
 --- !u!1 &1247355512273378964 stripped
 GameObject:
@@ -252,9 +256,9 @@ MonoBehaviour:
     VectorActionDescriptions: []
     VectorActionSpaceType: 1
     hasUpgradedBrainParametersWithActionSpec: 1
-  m_Model: {fileID: 0}
+  m_Model: {fileID: 5022602860645237092, guid: 3e407c3bda8863c498265111b9c79fa2, type: 3}
   m_InferenceDevice: 0
-  m_BehaviorType: 0
+  m_BehaviorType: 2
   m_BehaviorName: MoveToGoal
   TeamId: 0
   m_UseChildSensors: 1
@@ -276,22 +280,25 @@ MonoBehaviour:
   agentParameters:
     maxStep: 0
   hasUpgradedFromAgentParameters: 1
-  MaxStep: 1000
+  MaxStep: 2000
   moveSpeed: 4
   turnSpeed: 120
   useDistanceShaping: 1
-  rewardTowardsGoal: 0.04
+  rewardTowardsGoal: 0.09
   penaltyAwayFromGoal: -0.07
-  timePenaltyPerStep: -0.008
-  goalReward: 10
-  wallPenalty: -1
+  timePenaltyPerStep: -0.007
+  goalReward: 30
+  wallPenalty: -3
   usePathShaping: 0
   pathNearThreshold: 1.5
   rewardOnPath: 0.02
   useAntiIdle: 1
-  minMoveDistance: 0.01
+  minMoveDistance: 0.013
   maxStepsWithoutMoving: 80
-  idlePenalty: -0.5
+  idlePenalty: -2
+  useAntiLoop: 0
+  maxStepsWithoutProgress: 350
+  noProgressPenalty: -1
   includeDistanceObservation: 1
   distanceNormalizationFactor: 50
   win: {fileID: 2100000, guid: f75a6ad5b8f20dc469cc1dd26614093e, type: 2}
@@ -314,6 +321,22 @@ MonoBehaviour:
   DecisionPeriod: 1
   DecisionStep: 0
   TakeActionsBetweenDecisions: 1
+--- !u!114 &8770797786374892454
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1247355512273378964}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f2902496c0120472b90269f94a0aec7e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.ML-Agents::Unity.MLAgents.Demonstrations.DemonstrationRecorder
+  Record: 0
+  NumStepsToRecord: 0
+  DemonstrationName: DemostracionDeImitacion
+  DemonstrationDirectory: AprendisajePorImitacion
 --- !u!4 &1250865034607697260 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4521296116772160, guid: 70d695e1d8399400bb0f2873bdf29bb0,
